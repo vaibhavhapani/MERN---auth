@@ -3,7 +3,10 @@ const mongoose = require("mongoose");
 const router = require("./routes/userRouter");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-const db_link = "mongodb+srv://admin:<password>@cluster0.cjikjz9.mongodb.net/?retryWrites=true&w=majority"
+
+require('dotenv').config();
+
+const db_link = `mongodb+srv://admin:${process.env.MONGODB_PASSWORD}@cluster0.cjikjz9.mongodb.net/?retryWrites=true&w=majority`
 
 const app = express();
 

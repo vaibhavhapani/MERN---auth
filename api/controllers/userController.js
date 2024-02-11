@@ -1,7 +1,6 @@
 const User = require("../model/userModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const JWT_SECRET_KEY = "2b1hb3hj2bw93uhd";
 
 const signUp = async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -39,7 +38,7 @@ const login = async (req, res, next) => {
   let existingUser;
 
   try {
-    existingUser = await User.findOne({ email });
+    existingUser = await User.findOne({ email: email });
   } catch (err) {
     return new Error(err);
   }
@@ -54,24 +53,19 @@ const login = async (req, res, next) => {
 
   if (!isPasswordCorrect) {
     return res.status(400).json({
-      message: "Invalid Password",
+      message: "Invalid Email or Password",
     });
   }
 
-  const token = jwt.sign({ id: existingUser.id }, JWT_SECRET_KEY, {
-    expiresIn: "35s",
+  const token = jwt.sign({ id: existingUser.id }, process.env.JWT_SECRET_KEY, {
+    expiresIn: "2h",
   });
 
   console.log("Generated Token\n", token);
 
-  // if(req.cookies[jwt]){
-  //   console.log("yumm\n" + req.cookies[jwt])
-  //   req.cookies[`${existingUser.id}`] = ""
-  // }
-
   res.cookie("jwt", token, {
     path: "/",
-    expires: new Date(Date.now() + 1000 * 30),
+    expires: new Date(Date.now() + 1000 * 7200),
     httpOnly: true,
     sameSite: "lax",
   });
@@ -85,7 +79,6 @@ const login = async (req, res, next) => {
 
 const verifyToken = (req, res, next) => {
   const token = req.cookies.jwt;
-  console.log("helloe verify " + token);
 
   if (!token) {
     res.status(404).json({
@@ -93,15 +86,16 @@ const verifyToken = (req, res, next) => {
     });
   }
 
-  jwt.verify(String(token), JWT_SECRET_KEY, (err, user) => {
+  jwt.verify(String(token), process.env.JWT_SECRET_KEY, (err, user) => {
     if (err) {
+      console.log(err);
       res.status(400).json({
         message: "Invalid token",
       });
     }
     req.id = user.id;
+    next();
   });
-  next();
 };
 
 const getUser = async (req, res, next) => {
@@ -121,7 +115,45 @@ const getUser = async (req, res, next) => {
   return res.status(200).json({ user });
 };
 
-const refreshToken = (req, res, next) => {
+// const refreshToken = (req, res, next) => {
+//   const prevToken = req.cookies.jwt;
+  
+//   if (!prevToken) {
+//     return res.status(400).json({
+//       message: "Couldn't find token",
+//     });
+//   }
+
+//   jwt.verify(String(prevToken), process.env.JWT_SECRET_KEY, (err, user) => {
+//     if (err) {
+//       console.log(err);
+//       return res.status(403).json({
+//         message: "authentication failed",
+//       });
+//     }
+
+//     res.clearCookie('jwt');
+//     req.cookies['jwt'] = "";
+
+//     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET_KEY, {
+//       expiresIn: "35s",
+//     });
+
+//     console.log("Regenerated Token\n", token);
+
+//     res.cookie("jwt", token, {
+//       path: "/",
+//       expires: new Date(Date.now() + 1000 * 30),
+//       httpOnly: true,
+//       sameSite: "lax",
+//     });
+
+//     req.id = user.id;
+//     next();
+//   });
+// };
+
+const logout = (req, res, next) => {
   const prevToken = req.cookies.jwt;
   
   if (!prevToken) {
@@ -130,37 +162,27 @@ const refreshToken = (req, res, next) => {
     });
   }
 
-  jwt.verify(String(prevToken), JWT_SECRET_KEY, (err, user) => {
+  jwt.verify(String(prevToken), process.env.JWT_SECRET_KEY, (err, user) => {
     if (err) {
       console.log(err);
       return res.status(403).json({
-        message: "apientication failed",
+        message: "authentication failed",
       });
     }
 
-    res.clearCookie(`${jwt}`);
-    req.cookies[`${jwt}`] = "";
+    res.clearCookie("jwt");
+    req.cookies["jwt"] = "";
 
-    const token = jwt.sign({ id: user.id }, JWT_SECRET_KEY, {
-      expiresIn: "35s",
-    });
-
-    console.log("Regenerated Token\n", token);
-
-    res.cookie("jwt", token, {
-      path: "/",
-      expires: new Date(Date.now() + 1000 * 30),
-      httpOnly: true,
-      sameSite: "lax",
-    });
-
-    req.id = user.id;
-    next();
+    return res.status(200).json({
+      message: "Successfully logged out"
+    })
   });
-};
+  
+}
 
 exports.signUp = signUp;
 exports.login = login;
 exports.verifyToken = verifyToken;
 exports.getUser = getUser;
-exports.refreshToken = refreshToken;
+// exports.refreshToken = refreshToken;
+exports.logout = logout;
